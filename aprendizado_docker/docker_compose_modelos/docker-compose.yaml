@@ -1,0 +1,13 @@
+services:
+  # Nome do serviço
+  dashboard:
+  # Imagem baseada no build da aplicação
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile
+    # Mapeia a porta do host para a porta do container
+    ports:
+      - "8501:8501"
+    # Injeta as variaveis de ambiente dentro da imagem
+    env_file:
+      - ../.env
