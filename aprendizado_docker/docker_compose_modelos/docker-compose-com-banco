@@ -1,0 +1,24 @@
+services:
+  database:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: dw
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+  app_upload_planilhas:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - database 
+volumes:
+  pgdata:
+networks:
+  default:
+    name: upload_planilhas_network
+      
