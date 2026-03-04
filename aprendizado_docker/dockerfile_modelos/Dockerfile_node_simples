@@ -1,0 +1,12 @@
+# Usar a imagem oficial do Node.js como base
+FROM node:25-slim
+# Definicao do diretório de trabalho do container
+WORKDIR /app
+# Copiar os arquivos para o diretorio do de trabalho
+COPY . .
+# Instalar as dependencias do projeto
+RUN npm install
+# Expor a porta que a aplicação irá rodar
+EXPOSE 8080
+# Comando para iniciar a aplicação
+CMD [ "npm", "run", "dev" ]
