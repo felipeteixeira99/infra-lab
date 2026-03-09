@@ -1,0 +1,10 @@
+# Minuto
+# Hora
+# Dia do mes
+# Mes 
+# Dia da Semana
+
+
+# Basta alterar o horario desejado
+
+36 20 * * * /home/ubuntu/scripts/bkp_postgres.sh
