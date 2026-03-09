@@ -1,0 +1,14 @@
+[Unit]
+Description=Prefect Server
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/scripts/prefect_server
+ExecStart=/bin/bash /home/ubuntu/scripts/prefect_server/start_prefect.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
