@@ -1,0 +1,21 @@
+# Comando para realizar p backup de um banco de dados postgres
+
+
+pg_dump -h localhost -U postgres -s -d banco_name -O -x  -f ./name_arquivo.sql
+
+-h host
+-U usuario
+-s Somente esqueleto do banco
+-d name do banco de dados pra onde sera restaurado os dados
+-O ignorar o dono, no caso o dono sera o usuario que esta restaurando o banco posteriormente
+-x ignorar as permissoes
+-f nome e local do arquivo que serao salvo os comandos
+
+# Comando para restaurar o banco de dados
+
+psql -h localhost -U postgres -d teste_dw_old -f ./estrutura_dw.sql
+
+-h jost
+-U usuario que ira se conectar para realizar o restore
+-d name do banco de dados pra onde sera restaurado os dados
+-f caminho e arquivo que sera utilizado
