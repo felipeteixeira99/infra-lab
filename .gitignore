@@ -1,2 +1,6 @@
 # variaveis de ambiente
 .env
+
+# config real das VMs (IP, ID): so o .env.example vai para o git
+*.env
+!*.env.example
