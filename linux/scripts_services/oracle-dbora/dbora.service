@@ -1,0 +1,40 @@
+#====================================================================================================================================
+# Descrição: Sobe e derruba o Oracle Database 19c (instância orcl19c) e o listener junto com a VM
+# Autor: Felipe Teixeira de Assunção
+# Data de Criação: 27.09.2026
+# Instalar em: /etc/systemd/system/dbora.service (ver README.md desta pasta)
+# Pré-requisito: rótulo SELinux bin_t em $ORACLE_HOME/bin e entrada com :Y no /etc/oratab
+#====================================================================================================================================
+
+[Unit]
+Description=Oracle Database 19c (orcl19c) auto start/stop
+# o listener escuta no IP da VM: espera a rede estar de fato no ar
+# (no Oracle Linux 8 não existe network.service; a rede é do NetworkManager)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# dbstart/dbshut rodam e terminam; o banco fica em processos próprios.
+# RemainAfterExit mantém o serviço "active" para o ExecStop rodar no desligamento.
+Type=oneshot
+RemainAfterExit=yes
+User=oracle
+Group=oinstall
+
+Environment=ORACLE_SID=orcl19c
+Environment=ORACLE_BASE=/u01/app/oracle
+Environment=ORACLE_HOME=/u01/app/oracle/product/19.3.0.0/dbhome_1
+Environment=ORACLE_UNQNAME=orcl19c
+
+# O executável (1ª palavra) tem que ser caminho absoluto por extenso: o systemd
+# não expande variável ali. Nos argumentos, ${ORACLE_HOME} pode.
+ExecStart=/u01/app/oracle/product/19.3.0.0/dbhome_1/bin/dbstart ${ORACLE_HOME}
+ExecStop=/u01/app/oracle/product/19.3.0.0/dbhome_1/bin/dbshut ${ORACLE_HOME}
+
+# Medido: start 51 s com a VM quente, 136 s no boot (HD disputado); stop ~50 s.
+# O padrão de 90 s mataria o dbstart no boot e o dbshut no meio do desligamento.
+TimeoutStartSec=300
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target

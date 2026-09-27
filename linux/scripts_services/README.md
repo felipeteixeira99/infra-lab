@@ -1,82 +1,72 @@
-# Criação de Serviços
+# Serviços (systemd)
 
-Observações: Estou utilizando como exemplo o script que esta dentro dessa pasta, ao qual o objetivo é startar o servidor do prefect-server para orquestração de pipelines
+Tudo que precisa subir sozinho com uma VM do home lab vira um serviço do systemd
+e mora aqui, **uma pasta por serviço**.
 
-### 1. Crie o arquivo de serviço:
+## Serviços
 
+| Pasta | O que sobe | SO | Tipo |
+|---|---|---|---|
+| [oracle-dbora](oracle-dbora/README.md) | Oracle 19c + listener | Oracle Linux 8.4 | `oneshot` |
+| [prefect-server](prefect-server/README.md) | Prefect Server | Ubuntu | `simple` |
+| [_modelo](_modelo/) | ponto de partida para um serviço novo | — | — |
 
+`start.sh` (solto nesta pasta): túnel cloudflared + `docker-compose up` do n8n.
+Ainda não é serviço; quando virar, ganha pasta própria.
 
+## Padrão
+
+### Estrutura
 ```
-bash
-sudo nano /etc/systemd/system/prefect-server.service
-```
-
-### 2. Cole o conteúdo:
-
-
-```
-
-[Unit]
-Description=Prefect Server
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/scripts/prefect_server
-ExecStart=/bin/bash /home/ubuntu/scripts/prefect_server/script.sh
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-
+scripts_services/
+└─ <nome>/
+   ├─ <nome>.service   # a unit, com cabeçalho
+   ├─ <script>.sh      # só se o serviço precisar de script
+   └─ README.md        # copiado de _modelo/README.md
 ```
 
-Explicação do conteudo
+### Cabeçalho
+Todo `.service` e `.sh` começa com o bloco de cabeçalho (Descrição, Autor, Data de
+Criação, e no `.service` também Instalar em e Pré-requisito). Ver `_modelo/`.
 
-[Unit] — Metadados e dependências do serviço <br>
-Description=Prefect Server - Nome descritivo do serviço 
-<br>
-After=network.target - Só inicia após a rede estar disponível # (importante pois precisamos do IP da máquina) <br>
-Type=simple -  O processo principal é o próprio script <br>
-User=ubuntu - Usuário que vai executar o script <br>
-WorkingDirectory= - Pasta onde o script está localizado <br>
-ExecStart= - Comando que inicia o serviço <br>
-Restart=always - Reinicia automaticamente se cair <br>
-RestartSec=10  - Aguarda 10 segundos antes de tentar reiniciar <br>
-WantedBy=multi-user.target - Inicia no boot, quando o sistema estiver em modo multiusuário (modo normal de operação) <br>
+### Regras da unit
+1. **Instalar em `/etc/systemd/system/`.** `/usr/lib/systemd/system/` é dos pacotes
+   (o `dnf`/`apt` pode sobrescrever); `/etc` é do administrador e ganha dos dois.
+2. **Executável por caminho absoluto, por extenso.** O systemd não expande variável
+   na 1ª palavra do `ExecStart` (`bad-setting`). Nos argumentos, `${VAR}` pode.
+3. **Sem `/bin/bash -c "..."`.** O systemd processa `$` antes do bash e o comando
+   chega quebrado (`-c: a opção requer um argumento`). Precisa de lógica? Escreva um
+   `.sh` e aponte o `ExecStart` para ele.
+4. **Precisa de IP? `Wants=` + `After=network-online.target`.** `network.target` só
+   garante que a pilha de rede subiu, não que há IP. `network.service` não existe no
+   Oracle Linux 8 / RHEL 8.
+5. **`simple`** quando o processo fica rodando; **`oneshot` + `RemainAfterExit=yes`**
+   quando o comando termina e deixa outros processos no ar (`dbstart`).
+6. **Meça antes de confiar no timeout padrão (90 s).** Start no boot é mais lento que
+   o manual (136 s × 51 s no Oracle). Passou de ~45 s: `TimeoutStartSec`/`TimeoutStopSec`.
+7. **Segredo nunca na unit.** `EnvironmentFile=/etc/<nome>.env` com `chmod 600`, fora do git.
 
-
-### 3. Ative e inicie o serviço:
-
-```
-# Recarregar o systemd para reconhecer o novo serviço
-sudo systemctl daemon-reload
-
-# Habilitar para iniciar automaticamente no boot
-sudo systemctl enable prefect-server
-
-# Iniciar o serviço agora
-sudo systemctl start prefect-server
-
-```
-
-### 4. Comandos úteis para gerenciar:
-
-```
-# Ver status
-sudo systemctl status prefect-server
-
-# Ver logs em tempo real
-sudo journalctl -u prefect-server -f
-
-# Parar o serviço
-sudo systemctl stop prefect-server
-
-# Reiniciar o serviço
-sudo systemctl restart prefect-server
-
+### Checklist de criação
+```bash
+sudo systemd-analyze verify /etc/systemd/system/<nome>.service   # sintaxe
+sudo systemctl daemon-reload                                     # TODA edição
+systemctl cat <nome> | head -1                                   # carregou o arquivo certo?
+sudo systemctl start <nome> && systemctl status <nome> --no-pager
+sudo systemctl stop <nome>                                       # o stop funciona?
+sudo systemctl enable <nome>
+sudo reboot                                                      # a prova de verdade
 ```
 
+### Quando falha: onde olhar
 
+| Sintoma no `status` | Primeiro suspeito | Comando |
+|---|---|---|
+| `203/EXEC` | SELinux (RHEL/Oracle Linux) ou caminho/permissão | `sudo ausearch -m avc -ts today`; `ls -Z <executavel>` |
+| `bad-setting` | sintaxe da unit | `sudo systemd-analyze verify <arquivo>` |
+| `status=N` sem mensagem | erro do próprio processo | `sudo journalctl --since "HH:MM:SS" --until "HH:MM:SS"` **sem `-u`** |
+| mudou a unit e nada mudou | faltou `daemon-reload` | `systemctl cat <nome>` × `status` |
+| `timeout` | start/stop lento | medir e subir `TimeoutStartSec`/`TimeoutStopSec` |
+
+`journalctl -u <nome>` mostra o que o systemd diz sobre a unit, mas pode esconder
+o que o processo escreveu antes de morrer. Na dúvida, janela de tempo sem filtro.
+O journal só guarda boots anteriores se `/var/log/journal` existir.

@@ -1,0 +1,40 @@
+#====================================================================================================================================
+# Descrição: <o que o serviço sobe, em uma linha>
+# Autor: Felipe Teixeira de Assunção
+# Data de Criação: DD.MM.AAAA
+# Instalar em: /etc/systemd/system/<nome>.service (ver README.md da pasta)
+# Pré-requisito: <SELinux, arquivo de config, usuário... ou "nenhum">
+#====================================================================================================================================
+
+[Unit]
+Description=<Nome legível do serviço>
+# precisa de IP (escuta em porta, chama API)? network-online. Só loopback? pode tirar as duas linhas.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# simple  = o processo fica rodando em primeiro plano (servidor, API, worker)
+# oneshot = o comando roda e termina (dbstart); use RemainAfterExit=yes para ter ExecStop
+Type=simple
+User=<usuario>
+Group=<grupo>
+
+# Variáveis: Environment=CHAVE=valor. Segredo nunca aqui: EnvironmentFile=/etc/<nome>.env (chmod 600)
+#Environment=CHAVE=valor
+#EnvironmentFile=/etc/<nome>.env
+
+# 1ª palavra = caminho ABSOLUTO por extenso (sem variável). Argumentos podem usar ${VAR}.
+# Evite /bin/bash -c "...": o systemd mexe no $ antes do bash.
+ExecStart=/caminho/absoluto/do/executavel ${ARG}
+#ExecStop=/caminho/absoluto/do/stop ${ARG}
+
+# simple: reinicia se cair. oneshot: apague as duas linhas.
+Restart=on-failure
+RestartSec=10
+
+# Padrão é 90 s. MEÇA o start e o stop no boot antes de decidir.
+#TimeoutStartSec=300
+#TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target
