@@ -1,5 +1,5 @@
 # Arquivos que rodam no Linux: sempre LF, mesmo com checkout no Windows
-# (CRLF quebra o systemd e o bash: ": command not found")
+# (CRLF quebra o systemd e o bash: "\r: command not found")
 *.sh       text eol=lf
 *.service  text eol=lf
 *.timer    text eol=lf
